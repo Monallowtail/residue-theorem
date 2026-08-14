@@ -1,0 +1,1627 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#fbfdfc">
+  <title>留数定理 — Residue Lab</title>
+  <meta name="description" content="複素関数の特異点と閉曲線上の積分を、留数定理で探索するインタラクティブな複素平面。">
+  <script>
+    window.MathJax = {
+      output: {
+        fontExtensions: ['mathjax-euler']
+      },
+      tex: {
+        inlineMath: [['\\(', '\\)']],
+        displayMath: [['\\[', '\\]']]
+      }
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js"></script>
+  <script src="https://unpkg.com/mathjs@15.2.0/lib/browser/math.js"></script>
+  <style>
+    :root {
+      --ink: #233532;
+      --muted: #74837f;
+      --line: #dfe9e5;
+      --mint: #dff3eb;
+      --mint-strong: #74bca4;
+      --blue: #dfeafb;
+      --blue-strong: #6f9ed2;
+      --peach: #f9ded5;
+      --peach-strong: #d68170;
+      --lavender: #ece5f8;
+      --lavender-strong: #8f79bd;
+      --paper: rgba(255, 255, 255, .91);
+      --shadow: 0 16px 50px rgba(67, 92, 85, .11);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #fbfdfc;
+      color: var(--ink);
+      font-family: "Hiragino Sans", "Yu Gothic UI", "Yu Gothic", system-ui, sans-serif;
+    }
+
+    button, input { font: inherit; color: inherit; }
+
+    button {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .app {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-height: 420px;
+      isolation: isolate;
+    }
+
+    #plane {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      touch-action: none;
+      cursor: crosshair;
+    }
+
+    .brand {
+      position: absolute;
+      z-index: 3;
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 7px 12px;
+      color: #50635f;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 14px;
+      letter-spacing: .02em;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 24px;
+      height: 24px;
+      border: 1px solid #bfd8cf;
+      border-radius: 50%;
+      background: rgba(237, 248, 244, .88);
+      color: #4f8e7a;
+      font-size: 17px;
+      font-style: italic;
+    }
+
+    .control-panel {
+      position: absolute;
+      z-index: 5;
+      top: 18px;
+      left: 18px;
+      width: min(350px, calc(100vw - 36px));
+      border: 1px solid rgba(204, 220, 215, .9);
+      border-radius: 18px;
+      background: var(--paper);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      overflow: hidden;
+    }
+
+    .control-panel > summary {
+      display: none;
+      list-style: none;
+      cursor: pointer;
+    }
+
+    .control-panel > summary::-webkit-details-marker { display: none; }
+
+    .panel-body { padding: 16px; }
+
+    .field-label {
+      display: block;
+      margin: 0 0 7px 2px;
+      color: #536560;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 14px;
+      font-style: italic;
+    }
+
+    .input-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      min-width: 0;
+      height: 43px;
+      padding: 0 13px;
+      border: 1px solid #d7e3df;
+      border-radius: 11px;
+      outline: none;
+      background: rgba(255,255,255,.88);
+      font-family: "Iowan Old Style", Georgia, "Times New Roman", serif;
+      font-size: 16px;
+      transition: border-color .18s, box-shadow .18s;
+    }
+
+    input[type="text"]:focus {
+      border-color: #8fc7b5;
+      box-shadow: 0 0 0 3px rgba(143, 199, 181, .18);
+    }
+
+    #functionInput {
+      font-family: Consolas, "Cascadia Mono", "Courier New", monospace;
+      font-size: 15px;
+    }
+
+    mjx-container {
+      color: inherit;
+    }
+
+    .field-label mjx-container,
+    .mini-label mjx-container,
+    .integral-value mjx-container,
+    .integral-detail mjx-container,
+    .tooltip mjx-container,
+    .brand-mark mjx-container {
+      margin: 0 !important;
+    }
+
+    .button {
+      min-height: 42px;
+      padding: 0 15px;
+      border: 1px solid #cfdfda;
+      border-radius: 11px;
+      background: #f7fbf9;
+      color: #405652;
+      cursor: pointer;
+      transition: transform .15s, background .15s, border-color .15s;
+    }
+
+    .button:hover { background: #edf7f3; border-color: #b8d5ca; }
+    .button:active { transform: translateY(1px); }
+
+    .button.primary {
+      border-color: #a8cfc2;
+      background: var(--mint);
+      color: #2f6f5b;
+      font-weight: 600;
+    }
+
+    .button:focus-visible, .tool-button:focus-visible, summary:focus-visible {
+      outline: 3px solid rgba(111, 158, 210, .28);
+      outline-offset: 2px;
+    }
+
+    .error-text {
+      min-height: 18px;
+      margin: 6px 2px 0;
+      color: #b75f55;
+      font-size: 12px;
+    }
+
+    .parametric {
+      margin-top: 10px;
+      border-top: 1px solid #e4ece9;
+      padding-top: 10px;
+    }
+
+    .parametric > summary {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 3px 2px 7px;
+      color: #63746f;
+      font-size: 13px;
+      cursor: pointer;
+      list-style: none;
+      user-select: none;
+    }
+
+    .parametric > summary::-webkit-details-marker { display: none; }
+    .parametric > summary::before { content: "+"; color: #79a897; font-size: 16px; }
+    .parametric[open] > summary::before { content: "−"; }
+
+    .param-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .param-grid .curve-field { grid-column: 1 / -1; }
+    .param-grid .make-curve { grid-column: 1 / -1; }
+
+    .mini-label {
+      display: block;
+      margin: 0 0 4px 2px;
+      color: #83908d;
+      font-size: 11px;
+    }
+
+    .param-grid input[type="text"] { height: 38px; font-size: 14px; }
+
+    .toolbar {
+      position: absolute;
+      z-index: 5;
+      top: 18px;
+      right: 18px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px;
+      border: 1px solid rgba(204, 220, 215, .9);
+      border-radius: 14px;
+      background: var(--paper);
+      box-shadow: 0 10px 34px rgba(67, 92, 85, .09);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+
+    .tool-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      height: 36px;
+      min-width: 36px;
+      padding: 0 10px;
+      border: 0;
+      border-radius: 9px;
+      background: transparent;
+      color: #61736e;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .tool-button:hover { background: #f0f6f3; }
+    .tool-button.active { background: var(--mint); color: #35715e; }
+    .tool-button.danger:hover { background: #faece8; color: #a45a4e; }
+    .tool-symbol { font-size: 17px; line-height: 1; }
+
+    .toolbar-separator {
+      width: 1px;
+      height: 22px;
+      margin: 0 1px;
+      background: #e0e9e6;
+    }
+
+    .result-panel {
+      position: absolute;
+      z-index: 4;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      width: min(620px, calc(100vw - 36px));
+      min-height: 66px;
+      padding: 12px 18px;
+      border: 1px solid rgba(204, 220, 215, .9);
+      border-radius: 16px;
+      background: var(--paper);
+      box-shadow: 0 12px 40px rgba(67, 92, 85, .1);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      pointer-events: none;
+    }
+
+    .integral-value {
+      overflow: hidden;
+      color: #344b46;
+      font-family: "Iowan Old Style", Georgia, "Times New Roman", serif;
+      font-size: clamp(16px, 2vw, 21px);
+      text-align: center;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .integral-detail {
+      margin-top: 4px;
+      overflow: hidden;
+      color: #7b8985;
+      font-family: "Iowan Old Style", Georgia, "Times New Roman", serif;
+      font-size: 12px;
+      text-align: center;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .tooltip {
+      position: absolute;
+      z-index: 10;
+      display: none;
+      width: max-content;
+      max-width: min(290px, calc(100vw - 28px));
+      padding: 10px 12px;
+      border: 1px solid #dce7e3;
+      border-radius: 12px;
+      background: rgba(255,255,255,.97);
+      box-shadow: 0 12px 36px rgba(57, 80, 74, .14);
+      color: #40534f;
+      pointer-events: none;
+    }
+
+    .tooltip-name {
+      margin-bottom: 4px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 15px;
+      font-style: italic;
+    }
+
+    .tooltip-type { color: #697a75; font-size: 12px; }
+    .tooltip-residue { margin-top: 4px; color: #596b66; font-family: Georgia, serif; font-size: 13px; }
+
+    .toast {
+      position: absolute;
+      z-index: 8;
+      top: 70px;
+      left: 50%;
+      transform: translate(-50%, -8px);
+      max-width: min(520px, calc(100vw - 32px));
+      padding: 8px 12px;
+      border: 1px solid #dce8e4;
+      border-radius: 10px;
+      background: rgba(255,255,255,.94);
+      box-shadow: 0 8px 26px rgba(67, 92, 85, .1);
+      color: #687873;
+      font-size: 12px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .2s, transform .2s;
+    }
+
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    .loading-mask {
+      position: absolute;
+      z-index: 7;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(251,253,252,.38);
+      color: #60736d;
+      font-size: 13px;
+      pointer-events: none;
+    }
+
+    .loading-mask.show { display: flex; }
+
+    @media (max-width: 840px) {
+      .brand { display: none; }
+      .tool-label { display: none; }
+      .tool-button { padding: 0 9px; }
+    }
+
+    @media (max-width: 700px) {
+      .control-panel {
+        top: max(10px, env(safe-area-inset-top));
+        left: 10px;
+        width: calc(100vw - 20px);
+        border-radius: 15px;
+      }
+
+      .control-panel > summary {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 45px;
+        padding: 0 14px;
+        color: #50635e;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 15px;
+      }
+
+      .control-panel > summary::after { content: "⌄"; color: #83a69a; }
+      .control-panel[open] > summary::after { content: "⌃"; }
+      .panel-body { max-height: min(48svh, 400px); padding: 4px 12px 13px; overflow-y: auto; }
+
+      .toolbar {
+        top: auto;
+        right: 10px;
+        bottom: calc(94px + env(safe-area-inset-bottom));
+        flex-direction: column;
+      }
+
+      .toolbar-separator { width: 22px; height: 1px; }
+
+      .result-panel {
+        bottom: max(10px, env(safe-area-inset-bottom));
+        width: calc(100vw - 20px);
+        min-height: 72px;
+        padding: 12px 68px 12px 14px;
+      }
+
+      .integral-value, .integral-detail { text-align: left; }
+      .toast { top: 64px; }
+    }
+
+    @media (max-width: 390px) {
+      .panel-body { max-height: 43svh; }
+      .param-grid { grid-template-columns: 1fr; }
+      .param-grid .curve-field, .param-grid .make-curve { grid-column: auto; }
+      .input-row { grid-template-columns: 1fr 72px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app" id="app">
+    <canvas id="plane" aria-label="特異点と閉曲線を表示する複素平面"></canvas>
+
+    <div class="brand" aria-hidden="true">
+      <span class="brand-mark">\(\rho\)</span>
+      <span>Residue theorem</span>
+    </div>
+
+    <details class="control-panel" id="controlPanel" open>
+      <summary>留数定理</summary>
+      <div class="panel-body">
+        <form id="functionForm" autocomplete="off">
+          <label class="field-label" for="functionInput">\(f(z)\)</label>
+          <div class="input-row">
+            <input id="functionInput" type="text" value="1 / (z^2 + 1)" spellcheck="false" aria-describedby="functionError">
+            <button class="button primary" type="submit">反映</button>
+          </div>
+          <div class="error-text" id="functionError" role="alert"></div>
+        </form>
+
+        <details class="parametric" id="parametricPanel">
+          <summary>パラメータ表示で曲線を作る</summary>
+          <form id="parametricForm" class="param-grid" autocomplete="off">
+            <label class="curve-field">
+              <span class="mini-label">\(C(t)\)</span>
+              <input id="curveExpression" type="text" value="2 * exp(i * t)" spellcheck="false">
+            </label>
+            <label>
+              <span class="mini-label">\(t_0\)</span>
+              <input id="tStart" type="text" value="0" spellcheck="false">
+            </label>
+            <label>
+              <span class="mini-label">\(t_1\)</span>
+              <input id="tEnd" type="text" value="2 * pi" spellcheck="false">
+            </label>
+            <button class="button make-curve" type="submit">曲線を作成</button>
+          </form>
+        </details>
+      </div>
+    </details>
+
+    <nav class="toolbar" aria-label="複素平面の操作">
+      <button class="tool-button active" type="button" data-mode="draw" aria-pressed="true" aria-label="曲線を描く">
+        <span class="tool-symbol">✎</span><span class="tool-label">描く</span>
+      </button>
+      <button class="tool-button" type="button" data-mode="edit" aria-pressed="false" aria-label="曲線を変形">
+        <span class="tool-symbol">⌁</span><span class="tool-label">変形</span>
+      </button>
+      <button class="tool-button" type="button" data-mode="pan" aria-pressed="false" aria-label="平面を移動">
+        <span class="tool-symbol">↔</span><span class="tool-label">移動</span>
+      </button>
+      <span class="toolbar-separator" aria-hidden="true"></span>
+      <button class="tool-button" id="zoomIn" type="button" aria-label="拡大"><span class="tool-symbol">＋</span></button>
+      <button class="tool-button" id="zoomOut" type="button" aria-label="縮小"><span class="tool-symbol">−</span></button>
+      <span class="toolbar-separator" aria-hidden="true"></span>
+      <button class="tool-button danger" id="resetCurve" type="button" aria-label="曲線をリセット">
+        <span class="tool-symbol">↺</span><span class="tool-label">リセット</span>
+      </button>
+    </nav>
+
+    <section class="result-panel" aria-live="polite" aria-atomic="true">
+      <div class="integral-value" id="integralValue">曲線を描くと積分値を計算します</div>
+      <div class="integral-detail" id="integralDetail">終点を始点の近くまで戻すと、自動で閉じます</div>
+    </section>
+
+    <div class="tooltip" id="tooltip" role="tooltip"></div>
+    <div class="toast" id="toast" role="status"></div>
+    <div class="loading-mask" id="loadingMask">特異点を探しています…</div>
+  </main>
+
+  <script>
+    (() => {
+      'use strict';
+
+      const app = document.getElementById('app');
+      const canvas = document.getElementById('plane');
+      const ctx = canvas.getContext('2d');
+      const functionForm = document.getElementById('functionForm');
+      const functionInput = document.getElementById('functionInput');
+      const functionError = document.getElementById('functionError');
+      const parametricForm = document.getElementById('parametricForm');
+      const curveExpression = document.getElementById('curveExpression');
+      const tStartInput = document.getElementById('tStart');
+      const tEndInput = document.getElementById('tEnd');
+      const integralValue = document.getElementById('integralValue');
+      const integralDetail = document.getElementById('integralDetail');
+      const tooltip = document.getElementById('tooltip');
+      const toast = document.getElementById('toast');
+      const loadingMask = document.getElementById('loadingMask');
+
+      const state = {
+        width: 0,
+        height: 0,
+        dpr: 1,
+        center: { re: 0, im: 0 },
+        scale: 76,
+        mode: 'draw',
+        curve: [],
+        curveClosed: false,
+        singularities: [],
+        expression: '1 / (z^2 + 1)',
+        compiled: null,
+        ast: null,
+        action: null,
+        hoverSingularity: null,
+        analysisToken: 0,
+        redrawQueued: false
+      };
+
+      const palette = {
+        grid: '#e8efec',
+        gridStrong: '#d5e2de',
+        axis: '#9bb1aa',
+        label: '#8b9995',
+        curve: '#6f9ed2',
+        curveFill: 'rgba(202, 221, 245, .16)',
+        curveGlow: 'rgba(111, 158, 210, .16)',
+        removable: '#8f79bd',
+        pole: '#d68170',
+        essential: '#6ea990',
+        start: '#6f9ed2'
+      };
+
+      let mathTypesetQueue = Promise.resolve();
+      const mathTypesetTimers = new WeakMap();
+
+      function typesetMath(container) {
+        if (!window.MathJax || typeof window.MathJax.typesetPromise !== 'function') return Promise.resolve();
+        mathTypesetQueue = mathTypesetQueue
+          .then(() => {
+            if (typeof window.MathJax.typesetClear === 'function') window.MathJax.typesetClear([container]);
+            return window.MathJax.typesetPromise([container]);
+          })
+          .catch(() => {});
+        return mathTypesetQueue;
+      }
+
+      function renderTex(element, tex) {
+        element.textContent = '\\(' + tex + '\\)';
+        const previous = mathTypesetTimers.get(element);
+        if (previous) clearTimeout(previous);
+        mathTypesetTimers.set(element, setTimeout(() => {
+          mathTypesetTimers.delete(element);
+          typesetMath(element);
+        }, 28));
+        return Promise.resolve();
+      }
+
+      function renderPlain(element, text) {
+        if (window.MathJax && typeof window.MathJax.typesetClear === 'function') window.MathJax.typesetClear([element]);
+        element.textContent = text;
+      }
+
+      function complex(re = 0, im = 0) { return { re, im }; }
+      function cAdd(a, b) { return { re: a.re + b.re, im: a.im + b.im }; }
+      function cSub(a, b) { return { re: a.re - b.re, im: a.im - b.im }; }
+      function cMul(a, b) { return { re: a.re * b.re - a.im * b.im, im: a.re * b.im + a.im * b.re }; }
+      function cDiv(a, b) {
+        const d = b.re * b.re + b.im * b.im;
+        return d === 0 ? { re: NaN, im: NaN } : { re: (a.re * b.re + a.im * b.im) / d, im: (a.im * b.re - a.re * b.im) / d };
+      }
+      function cAbs(a) { return Math.hypot(a.re, a.im); }
+      function finiteComplex(a) { return a && Number.isFinite(a.re) && Number.isFinite(a.im); }
+
+      function toComplex(value) {
+        if (typeof value === 'number') return complex(value, 0);
+        if (value && typeof value.re === 'number' && typeof value.im === 'number') return complex(value.re, value.im);
+        if (value && typeof value.toNumber === 'function') return complex(value.toNumber(), 0);
+        const n = Number(value);
+        return Number.isFinite(n) ? complex(n, 0) : complex(NaN, NaN);
+      }
+
+      function evaluate(compiled, z, extra = {}) {
+        try {
+          return toComplex(compiled.evaluate({ z: math.complex(z.re, z.im), ...extra }));
+        } catch (_) {
+          return complex(NaN, NaN);
+        }
+      }
+
+      function cleanExpression(value, variableName) {
+        let text = value.trim().replace(/π/g, 'pi').replace(/[−–—]/g, '-');
+        const prefix = new RegExp('^\\s*' + variableName + '\\s*\\([^)]*\\)\\s*=\\s*', 'i');
+        text = text.replace(prefix, '');
+        return text;
+      }
+
+      function validateAst(ast, allowedSymbols) {
+        const blockedTypes = new Set(['AssignmentNode', 'FunctionAssignmentNode', 'BlockNode', 'AccessorNode', 'IndexNode', 'ObjectNode']);
+        const allowedConstants = new Set(['i', 'e', 'pi', 'tau', 'Infinity']);
+        ast.traverse((node, _path, parent) => {
+          if (blockedTypes.has(node.type)) throw new Error('代入や配列参照は使用できません');
+          const isFunctionName = parent && parent.type === 'FunctionNode' && parent.fn === node;
+          if (node.type === 'SymbolNode' && !allowedSymbols.has(node.name) && !allowedConstants.has(node.name) && !isFunctionName) {
+            throw new Error('未知の記号「' + node.name + '」があります');
+          }
+        });
+      }
+
+      function screenToWorld(x, y) {
+        return {
+          re: state.center.re + (x - state.width / 2) / state.scale,
+          im: state.center.im - (y - state.height / 2) / state.scale
+        };
+      }
+
+      function worldToScreen(z) {
+        return {
+          x: state.width / 2 + (z.re - state.center.re) * state.scale,
+          y: state.height / 2 - (z.im - state.center.im) * state.scale
+        };
+      }
+
+      function niceStep() {
+        const raw = 82 / state.scale;
+        const power = Math.pow(10, Math.floor(Math.log10(raw)));
+        const unit = raw / power;
+        const factor = unit <= 1 ? 1 : unit <= 2 ? 2 : unit <= 5 ? 5 : 10;
+        return factor * power;
+      }
+
+      function formatAxis(value, step) {
+        if (Math.abs(value) < step * .05) return '0';
+        const digits = Math.max(0, Math.min(6, -Math.floor(Math.log10(step))));
+        return Number(value.toFixed(digits)).toString();
+      }
+
+      function resizeCanvas() {
+        const rect = canvas.getBoundingClientRect();
+        const oldMin = Math.min(state.width || rect.width, state.height || rect.height);
+        state.width = rect.width;
+        state.height = rect.height;
+        state.dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.round(rect.width * state.dpr);
+        canvas.height = Math.round(rect.height * state.dpr);
+        const newMin = Math.min(rect.width, rect.height);
+        if (oldMin > 0 && Math.abs(newMin - oldMin) > 10) state.scale *= newMin / oldMin;
+        requestDraw();
+      }
+
+      function requestDraw() {
+        if (state.redrawQueued) return;
+        state.redrawQueued = true;
+        requestAnimationFrame(() => {
+          state.redrawQueued = false;
+          draw();
+        });
+      }
+
+      function drawGrid() {
+        const step = niceStep();
+        const left = screenToWorld(0, 0).re;
+        const right = screenToWorld(state.width, 0).re;
+        const top = screenToWorld(0, 0).im;
+        const bottom = screenToWorld(0, state.height).im;
+
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = palette.grid;
+        ctx.beginPath();
+        for (let x = Math.ceil(left / step) * step; x <= right; x += step) {
+          const sx = Math.round(worldToScreen({ re: x, im: 0 }).x) + .5;
+          ctx.moveTo(sx, 0); ctx.lineTo(sx, state.height);
+        }
+        for (let y = Math.ceil(bottom / step) * step; y <= top; y += step) {
+          const sy = Math.round(worldToScreen({ re: 0, im: y }).y) + .5;
+          ctx.moveTo(0, sy); ctx.lineTo(state.width, sy);
+        }
+        ctx.stroke();
+
+        const origin = worldToScreen({ re: 0, im: 0 });
+        ctx.strokeStyle = palette.axis;
+        ctx.lineWidth = 1.25;
+        ctx.beginPath();
+        if (origin.y >= 0 && origin.y <= state.height) { ctx.moveTo(0, origin.y); ctx.lineTo(state.width, origin.y); }
+        if (origin.x >= 0 && origin.x <= state.width) { ctx.moveTo(origin.x, 0); ctx.lineTo(origin.x, state.height); }
+        ctx.stroke();
+
+        ctx.fillStyle = palette.label;
+        ctx.font = '11px system-ui, sans-serif';
+        const xLabelY = Math.min(state.height - 90, Math.max(14, origin.y + 17));
+        const yLabelX = Math.min(state.width - 24, Math.max(5, origin.x + 7));
+        for (let x = Math.ceil(left / step) * step; x <= right; x += step) {
+          if (Math.abs(x) < step * .05) continue;
+          const sx = worldToScreen({ re: x, im: 0 }).x;
+          if (sx < 20 || sx > state.width - 20) continue;
+          ctx.textAlign = 'center';
+          ctx.fillText(formatAxis(x, step), sx, xLabelY);
+        }
+        for (let y = Math.ceil(bottom / step) * step; y <= top; y += step) {
+          if (Math.abs(y) < step * .05) continue;
+          const sy = worldToScreen({ re: 0, im: y }).y;
+          if (sy < 18 || sy > state.height - 92) continue;
+          ctx.textAlign = 'left';
+          ctx.fillText(formatAxis(y, step) + 'i', yLabelX, sy - 5);
+        }
+
+        ctx.font = 'italic 13px Georgia, serif';
+        ctx.fillStyle = '#7f918c';
+        if (origin.y >= 0 && origin.y <= state.height) ctx.fillText('Re', state.width - 28, Math.min(state.height - 92, Math.max(15, origin.y - 8)));
+        if (origin.x >= 0 && origin.x <= state.width) ctx.fillText('Im', Math.min(state.width - 28, origin.x + 9), 18);
+      }
+
+      function drawCurve() {
+        if (state.curve.length < 2) return;
+        const points = state.curve.map(worldToScreen);
+        ctx.save();
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+        if (state.curveClosed) {
+          ctx.beginPath();
+          ctx.moveTo(points[0].x, points[0].y);
+          for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+          ctx.closePath();
+          ctx.fillStyle = palette.curveFill;
+          ctx.fill();
+        }
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+        if (state.curveClosed) ctx.closePath();
+        ctx.strokeStyle = palette.curveGlow;
+        ctx.lineWidth = 9;
+        ctx.stroke();
+        ctx.strokeStyle = palette.curve;
+        ctx.lineWidth = 2.4;
+        ctx.stroke();
+        ctx.restore();
+
+        if (!state.curveClosed && points.length > 1) {
+          const p = points[0];
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(111, 158, 210, .12)';
+          ctx.fill();
+          ctx.strokeStyle = palette.start;
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        }
+      }
+
+      function drawSingularity(s, hovered) {
+        const p = worldToScreen(s.z);
+        if (p.x < -25 || p.x > state.width + 25 || p.y < -25 || p.y > state.height + 25) return;
+        const r = hovered ? 8.5 : 7;
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        if (hovered) {
+          ctx.beginPath();
+          ctx.arc(0, 0, 15, 0, Math.PI * 2);
+          ctx.fillStyle = s.type === 'pole' ? 'rgba(214,129,112,.13)' : s.type === 'essential' ? 'rgba(110,169,144,.14)' : 'rgba(143,121,189,.13)';
+          ctx.fill();
+        }
+        if (s.type === 'removable') {
+          ctx.beginPath();
+          ctx.arc(0, 0, r, 0, Math.PI * 2);
+          ctx.fillStyle = '#fff';
+          ctx.fill();
+          ctx.strokeStyle = palette.removable;
+          ctx.lineWidth = 2.2;
+          ctx.stroke();
+          ctx.beginPath(); ctx.arc(0, 0, 2, 0, Math.PI * 2); ctx.fillStyle = palette.removable; ctx.fill();
+        } else if (s.type === 'essential') {
+          ctx.strokeStyle = palette.essential;
+          ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.arc(0, 0, r + 1, 0, Math.PI * 2); ctx.stroke();
+          ctx.beginPath();
+          for (let i = 0; i < 8; i++) {
+            const a = i * Math.PI / 4;
+            const rr = i % 2 ? r * .48 : r;
+            const x = Math.cos(a) * rr, y = Math.sin(a) * rr;
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+          }
+          ctx.closePath(); ctx.fillStyle = palette.essential; ctx.fill();
+        } else {
+          ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2);
+          ctx.fillStyle = palette.pole; ctx.fill();
+          ctx.beginPath(); ctx.arc(-2, -2, 2.2, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(255,255,255,.72)'; ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      function draw() {
+        ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
+        ctx.clearRect(0, 0, state.width, state.height);
+        drawGrid();
+        drawCurve();
+        for (const s of state.singularities) drawSingularity(s, s === state.hoverSingularity);
+      }
+
+      function nodeDependsOnZ(node) {
+        let depends = false;
+        node.traverse(n => { if (n.type === 'SymbolNode' && n.name === 'z') depends = true; });
+        return depends;
+      }
+
+      function collectCandidateNodes(ast) {
+        const result = [];
+        const seen = new Set();
+        function add(node) {
+          if (!node || !nodeDependsOnZ(node)) return;
+          const key = node.toString();
+          if (!seen.has(key)) { seen.add(key); result.push(node); }
+        }
+        ast.traverse(node => {
+          if (node.type === 'OperatorNode' && node.op === '/') add(node.args[1]);
+          if (node.type === 'OperatorNode' && node.op === '^' && node.args[1] && node.args[1].isConstantNode && Number(node.args[1].value) < 0) add(node.args[0]);
+          if (node.type === 'FunctionNode') {
+            const name = node.name || (node.fn && node.fn.name);
+            if ((name === 'tan' || name === 'sec') && node.args[0]) add(math.parse('cos(' + node.args[0].toString() + ')'));
+            if ((name === 'cot' || name === 'csc') && node.args[0]) add(math.parse('sin(' + node.args[0].toString() + ')'));
+          }
+        });
+        return result;
+      }
+
+      function visibleBounds() {
+        const a = screenToWorld(0, state.height);
+        const b = screenToWorld(state.width, 0);
+        const marginX = (b.re - a.re) * .08;
+        const marginY = (b.im - a.im) * .08;
+        return { left: a.re - marginX, right: b.re + marginX, bottom: a.im - marginY, top: b.im + marginY };
+      }
+
+      function findRoots(compiled, bounds) {
+        const roots = [];
+        const span = Math.max(bounds.right - bounds.left, bounds.top - bounds.bottom);
+        const grid = state.width < 520 ? 9 : 12;
+        const h = Math.max(1e-7, span * 2e-7);
+        const dedupe = Math.max(2e-5, span * 1e-5);
+
+        function addRoot(z) {
+          if (!finiteComplex(z)) return;
+          if (z.re < bounds.left || z.re > bounds.right || z.im < bounds.bottom || z.im > bounds.top) return;
+          if (roots.some(r => cAbs(cSub(r, z)) < dedupe * 8)) return;
+          roots.push(z);
+        }
+
+        for (let gy = 0; gy <= grid; gy++) {
+          for (let gx = 0; gx <= grid; gx++) {
+            let z = complex(
+              bounds.left + (bounds.right - bounds.left) * (gx + .21 * Math.sin(gy * 2.3)) / grid,
+              bounds.bottom + (bounds.top - bounds.bottom) * (gy + .17 * Math.cos(gx * 1.7)) / grid
+            );
+            for (let k = 0; k < 52; k++) {
+              const f = evaluate(compiled, z);
+              if (!finiteComplex(f)) break;
+              if (cAbs(f) < 1e-10) { addRoot(z); break; }
+              const fp = evaluate(compiled, complex(z.re + h, z.im));
+              const fm = evaluate(compiled, complex(z.re - h, z.im));
+              if (!finiteComplex(fp) || !finiteComplex(fm)) break;
+              const derivative = complex((fp.re - fm.re) / (2 * h), (fp.im - fm.im) / (2 * h));
+              if (cAbs(derivative) < 1e-13) break;
+              const delta = cDiv(f, derivative);
+              if (!finiteComplex(delta) || cAbs(delta) > span * 3) break;
+              z = cSub(z, delta);
+              if (z.re < bounds.left - span || z.re > bounds.right + span || z.im < bounds.bottom - span || z.im > bounds.top + span) break;
+              if (cAbs(delta) < dedupe) {
+                const residual = evaluate(compiled, z);
+                if (finiteComplex(residual) && cAbs(residual) < 1e-7) addRoot(z);
+                break;
+              }
+            }
+            if (roots.length >= 60) return roots;
+          }
+        }
+        return roots;
+      }
+
+      function polynomialTrim(coefficients) {
+        const result = coefficients.slice();
+        while (result.length > 1 && cAbs(result[result.length - 1]) < 1e-11) result.pop();
+        return result;
+      }
+
+      function polynomialAdd(a, b, sign = 1) {
+        const result = Array.from({ length: Math.max(a.length, b.length) }, () => complex(0, 0));
+        for (let i = 0; i < result.length; i++) {
+          result[i] = cAdd(a[i] || complex(0, 0), cMul(b[i] || complex(0, 0), complex(sign, 0)));
+        }
+        return polynomialTrim(result);
+      }
+
+      function polynomialMultiply(a, b) {
+        const result = Array.from({ length: a.length + b.length - 1 }, () => complex(0, 0));
+        for (let i = 0; i < a.length; i++) {
+          for (let j = 0; j < b.length; j++) result[i + j] = cAdd(result[i + j], cMul(a[i], b[j]));
+        }
+        return polynomialTrim(result);
+      }
+
+      function polynomialPower(base, exponent) {
+        let result = [complex(1, 0)];
+        for (let k = 0; k < exponent; k++) result = polynomialMultiply(result, base);
+        return result;
+      }
+
+      function numericPolynomial(node) {
+        if (!nodeDependsOnZ(node)) {
+          try {
+            const value = toComplex(node.compile().evaluate({}));
+            return finiteComplex(value) ? [value] : null;
+          } catch (_) { return null; }
+        }
+        if (node.type === 'ParenthesisNode') return numericPolynomial(node.content);
+        if (node.type === 'SymbolNode' && node.name === 'z') return [complex(0, 0), complex(1, 0)];
+        if (node.type !== 'OperatorNode') return null;
+        if (node.args.length === 1 && node.op === '-') {
+          const p = numericPolynomial(node.args[0]);
+          return p ? p.map(value => complex(-value.re, -value.im)) : null;
+        }
+        const a = numericPolynomial(node.args[0]);
+        const b = numericPolynomial(node.args[1]);
+        if (node.op === '+') return a && b ? polynomialAdd(a, b, 1) : null;
+        if (node.op === '-') return a && b ? polynomialAdd(a, b, -1) : null;
+        if (node.op === '*') return a && b ? polynomialMultiply(a, b) : null;
+        if (node.op === '/' && a && b && b.length === 1 && cAbs(b[0]) > 1e-14) return a.map(value => cDiv(value, b[0]));
+        if (node.op === '^' && a && b && b.length === 1 && Math.abs(b[0].im) < 1e-12) {
+          const exponent = Math.round(b[0].re);
+          if (exponent >= 0 && exponent <= 12 && Math.abs(exponent - b[0].re) < 1e-12) return polynomialPower(a, exponent);
+        }
+        return null;
+      }
+
+      function exactBinomialRoots(node) {
+        const polynomial = numericPolynomial(node);
+        if (!polynomial || polynomial.length < 4) return [];
+        const degree = polynomial.length - 1;
+        if (polynomial.slice(1, -1).some(coefficient => cAbs(coefficient) > 1e-10)) return [];
+        const first = polynomial[0], last = polynomial[degree];
+        if (Math.abs(first.im) > 1e-10 || Math.abs(last.im) > 1e-10 || Math.abs(last.re) < 1e-12) return [];
+        const target = -first.re / last.re;
+        const targetFraction = rationalApproximation(Math.abs(target), 256, 1e-10);
+        if (!targetFraction || target === 0) return [];
+        const radicand = fractionAbsTex(targetFraction.numerator, targetFraction.denominator);
+        const radiusTex = Math.abs(target - 1) < 1e-12 ? '1' : '\\sqrt[' + degree + ']{' + radicand + '}';
+        const radius = Math.pow(Math.abs(target), 1 / degree);
+        const descriptors = [];
+        for (let k = 0; k < degree; k++) {
+          let angleNumerator = target > 0 ? 2 * k : 2 * k + 1;
+          let angleDenominator = degree;
+          const divisor = gcdInteger(angleNumerator, angleDenominator);
+          angleNumerator /= divisor;
+          angleDenominator /= divisor;
+          const angle = Math.PI * (target > 0 ? 2 * k : 2 * k + 1) / degree;
+          let tex = radiusTex;
+          if (angleNumerator !== 0) {
+            let exponent;
+            if (angleDenominator === 1) exponent = (angleNumerator === 1 ? '' : angleNumerator) + '\\pi i';
+            else exponent = '\\frac{' + (angleNumerator === 1 ? '' : angleNumerator) + '\\pi i}{' + angleDenominator + '}';
+            tex = (radiusTex === '1' ? '' : radiusTex) + 'e^{' + exponent + '}';
+          }
+          descriptors.push({ z: complex(radius * Math.cos(angle), radius * Math.sin(angle)), tex });
+        }
+        return descriptors;
+      }
+
+      function median(values) {
+        const finite = values.filter(Number.isFinite).sort((a, b) => a - b);
+        if (!finite.length) return Infinity;
+        return finite[Math.floor(finite.length / 2)];
+      }
+
+      function sampleMagnitude(compiled, a, radius, count = 40) {
+        const values = [];
+        for (let k = 0; k < count; k++) {
+          const angle = 2 * Math.PI * (k + .37) / count;
+          const z = complex(a.re + radius * Math.cos(angle), a.im + radius * Math.sin(angle));
+          const v = evaluate(compiled, z);
+          if (finiteComplex(v)) values.push(Math.max(cAbs(v), 1e-300));
+        }
+        return { median: median(values), max: values.length ? Math.max(...values) : Infinity, min: values.length ? Math.min(...values) : 0 };
+      }
+
+      function growthOrder(compiled, a, radius) {
+        const large = sampleMagnitude(compiled, a, radius, 28).median;
+        const small = sampleMagnitude(compiled, a, radius * .52, 28).median;
+        if (!Number.isFinite(large) || !Number.isFinite(small) || large <= 0 || small <= 0) return Infinity;
+        return -(Math.log(small) - Math.log(large)) / Math.log(.52);
+      }
+
+      function hasEssentialComposition(ast, a, radius) {
+        let essential = false;
+        const essentialFunctions = new Set(['exp', 'sin', 'cos', 'sinh', 'cosh', 'tan', 'tanh']);
+        ast.traverse(node => {
+          if (essential || node.type !== 'FunctionNode' || !node.args[0]) return;
+          const name = node.name || (node.fn && node.fn.name);
+          if (!essentialFunctions.has(name)) return;
+          try {
+            const order = growthOrder(node.args[0].compile(), a, radius);
+            if (order > .45 || !Number.isFinite(order)) essential = true;
+          } catch (_) { /* ignore a non-compilable subexpression */ }
+        });
+        return essential;
+      }
+
+      function residueAt(a, radius) {
+        const count = 256;
+        let sum = complex(0, 0);
+        for (let k = 0; k < count; k++) {
+          const angle = 2 * Math.PI * (k + .5) / count;
+          const w = complex(radius * Math.cos(angle), radius * Math.sin(angle));
+          const v = evaluate(state.compiled, cAdd(a, w));
+          if (!finiteComplex(v)) return complex(NaN, NaN);
+          sum = cAdd(sum, cMul(v, w));
+        }
+        return complex(sum.re / count, sum.im / count);
+      }
+
+      function classificationRadius(a, allRoots) {
+        const span = Math.max(state.width, state.height) / state.scale;
+        let nearest = Infinity;
+        for (const b of allRoots) {
+          const d = cAbs(cSub(a, b));
+          if (d > 1e-7) nearest = Math.min(nearest, d);
+        }
+        return Math.max(2e-4, Math.min(span * .025, nearest / 3, .25 * Math.max(1, cAbs(a))));
+      }
+
+      function classifySingularity(a, allRoots) {
+        const radius = classificationRadius(a, allRoots);
+        const magnitudeA = sampleMagnitude(state.compiled, a, radius, 48);
+        const magnitudeB = sampleMagnitude(state.compiled, a, radius * .5, 48);
+        const orderEstimate = growthOrder(state.compiled, a, radius);
+        const essential = hasEssentialComposition(state.ast, a, radius) || !Number.isFinite(magnitudeB.median) || (magnitudeB.max / Math.max(magnitudeB.min, 1e-300) > 1e12 && orderEstimate > 3.5);
+        const residue = residueAt(a, radius * .72);
+
+        if (essential) return { z: a, type: 'essential', order: null, residue };
+        if (orderEstimate < .38 && Number.isFinite(magnitudeB.max)) return { z: a, type: 'removable', order: null, residue: complex(0, 0) };
+        const order = Math.max(1, Math.min(12, Math.round(orderEstimate)));
+        return { z: a, type: 'pole', order, residue };
+      }
+
+      async function analyzeFunction({ quiet = false } = {}) {
+        if (!window.math) {
+          functionError.textContent = '数式エンジンを読み込めませんでした。通信を確認してください。';
+          return;
+        }
+        const token = ++state.analysisToken;
+        if (!quiet) loadingMask.classList.add('show');
+        functionError.textContent = '';
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        try {
+          const expression = cleanExpression(functionInput.value, 'f');
+          if (!expression) throw new Error('複素関数を入力してください');
+          const ast = math.parse(expression);
+          validateAst(ast, new Set(['z']));
+          const compiled = ast.compile();
+          const probe = evaluate(compiled, complex(.731, .419));
+          if (!finiteComplex(probe)) {
+            const secondProbe = evaluate(compiled, complex(1.173, -.286));
+            if (!finiteComplex(secondProbe)) throw new Error('この式は複素数値の関数として評価できません');
+          }
+          state.expression = expression;
+          state.ast = ast;
+          state.compiled = compiled;
+
+          const candidateNodes = collectCandidateNodes(ast);
+          const bounds = visibleBounds();
+          const roots = [];
+          for (const node of candidateNodes) {
+            const found = findRoots(node.compile(), bounds);
+            const exactRoots = exactBinomialRoots(node);
+            for (const root of found) {
+              const exactMatch = exactRoots
+                .map(item => ({ item, distance: cAbs(cSub(item.z, root)) }))
+                .sort((a, b) => a.distance - b.distance)[0];
+              const exactTex = exactMatch && exactMatch.distance < Math.max(2e-5, 4 / state.scale)
+                ? exactMatch.item.tex
+                : guessComplexExactTex(root);
+              const merge = roots.find(item => cAbs(cSub(item.z, root)) < Math.max(1e-4, 5 / state.scale));
+              if (!merge) roots.push({ z: root, exactTex });
+              else if (!merge.exactTex && exactTex) merge.exactTex = exactTex;
+            }
+          }
+          if (token !== state.analysisToken) return;
+          roots.sort((a, b) => a.z.re - b.z.re || a.z.im - b.z.im);
+          const rootValues = roots.map(item => item.z);
+          state.singularities = roots.map(item => ({ ...classifySingularity(item.z, rootValues), exactTex: item.exactTex }));
+          if (state.curveClosed) calculateIntegral();
+          requestDraw();
+          if (!quiet) showToast(state.singularities.length ? state.singularities.length + ' 個の特異点を検出しました' : '表示範囲に特異点は見つかりませんでした');
+        } catch (error) {
+          functionError.textContent = error && error.message ? error.message : '式を解析できませんでした';
+        } finally {
+          if (token === state.analysisToken) loadingMask.classList.remove('show');
+        }
+      }
+
+      function pointSegmentDistance(p, a, b) {
+        const vx = b.re - a.re, vy = b.im - a.im;
+        const wx = p.re - a.re, wy = p.im - a.im;
+        const len2 = vx * vx + vy * vy;
+        const t = len2 ? Math.max(0, Math.min(1, (wx * vx + wy * vy) / len2)) : 0;
+        return Math.hypot(p.re - (a.re + t * vx), p.im - (a.im + t * vy));
+      }
+
+      function distanceToCurve(z) {
+        let distance = Infinity;
+        for (let i = 1; i < state.curve.length; i++) distance = Math.min(distance, pointSegmentDistance(z, state.curve[i - 1], state.curve[i]));
+        if (state.curveClosed && state.curve.length > 2) distance = Math.min(distance, pointSegmentDistance(z, state.curve[state.curve.length - 1], state.curve[0]));
+        return distance;
+      }
+
+      function windingNumber(z) {
+        let angle = 0;
+        const n = state.curve.length;
+        for (let i = 0; i < n; i++) {
+          const a = cSub(state.curve[i], z);
+          const b = cSub(state.curve[(i + 1) % n], z);
+          angle += Math.atan2(a.re * b.im - a.im * b.re, a.re * b.re + a.im * b.im);
+        }
+        return Math.round(angle / (2 * Math.PI));
+      }
+
+      function cleanTiny(value, scale = 1) {
+        return Math.abs(value) < 1e-9 * Math.max(1, scale) ? 0 : value;
+      }
+
+      function formatNumber(value, digits = 6) {
+        if (!Number.isFinite(value)) return '—';
+        const v = cleanTiny(value);
+        if (v === 0) return '0';
+        const av = Math.abs(v);
+        if (av >= 1e5 || av < 1e-4) return v.toExponential(3).replace('e+', 'e');
+        return Number(v.toPrecision(digits)).toString();
+      }
+
+      function formatComplex(z, digits = 6) {
+        if (!finiteComplex(z)) return '計算不能';
+        const re = cleanTiny(z.re, cAbs(z));
+        const im = cleanTiny(z.im, cAbs(z));
+        if (im === 0) return formatNumber(re, digits);
+        if (re === 0) {
+          if (Math.abs(im - 1) < 1e-10) return 'i';
+          if (Math.abs(im + 1) < 1e-10) return '−i';
+          return formatNumber(im, digits) + 'i';
+        }
+        return formatNumber(re, digits) + (im >= 0 ? ' + ' : ' − ') + (Math.abs(Math.abs(im) - 1) < 1e-10 ? '' : formatNumber(Math.abs(im), digits)) + 'i';
+      }
+
+      function gcdInteger(a, b) {
+        a = Math.abs(Math.round(a));
+        b = Math.abs(Math.round(b));
+        while (b) { const t = a % b; a = b; b = t; }
+        return a || 1;
+      }
+
+      function rationalApproximation(value, maxDenominator = 512, tolerance = 2e-8) {
+        if (!Number.isFinite(value) || Math.abs(value) > 1e8) return null;
+        if (Math.abs(value) < tolerance) return { numerator: 0, denominator: 1 };
+        for (let denominator = 1; denominator <= maxDenominator; denominator++) {
+          const numerator = Math.round(value * denominator);
+          if (Math.abs(value - numerator / denominator) <= tolerance * Math.max(1, Math.abs(value))) {
+            const divisor = gcdInteger(numerator, denominator);
+            return { numerator: numerator / divisor, denominator: denominator / divisor };
+          }
+        }
+        return null;
+      }
+
+      function fractionAbsTex(numerator, denominator) {
+        numerator = Math.abs(numerator);
+        denominator = Math.abs(denominator);
+        if (denominator === 1) return String(numerator);
+        return '\\frac{' + numerator + '}{' + denominator + '}';
+      }
+
+      function guessRealExact(value) {
+        const rational = rationalApproximation(value);
+        if (rational) {
+          if (rational.numerator === 0) return { sign: 0, absTex: '0', tex: '0' };
+          const sign = rational.numerator < 0 ? -1 : 1;
+          const absTex = fractionAbsTex(rational.numerator, rational.denominator);
+          return { sign, absTex, tex: sign < 0 ? '-' + absTex : absTex };
+        }
+        for (let degree = 2; degree <= 5; degree++) {
+          for (let radicand = 2; radicand <= 50; radicand++) {
+            const base = Math.pow(radicand, 1 / degree);
+            const coefficient = rationalApproximation(value / base, 128, 1e-9);
+            if (!coefficient || coefficient.numerator === 0) continue;
+            const reconstructed = coefficient.numerator / coefficient.denominator * base;
+            if (Math.abs(reconstructed - value) > 2e-8 * Math.max(1, Math.abs(value))) continue;
+            const sign = coefficient.numerator < 0 ? -1 : 1;
+            const coefficientAbs = Math.abs(coefficient.numerator) === coefficient.denominator
+              ? ''
+              : fractionAbsTex(coefficient.numerator, coefficient.denominator);
+            const radical = degree === 2 ? '\\sqrt{' + radicand + '}' : '\\sqrt[' + degree + ']{' + radicand + '}';
+            const absTex = coefficientAbs + radical;
+            return { sign, absTex, tex: sign < 0 ? '-' + absTex : absTex };
+          }
+        }
+        return null;
+      }
+
+      function signedTexTerms(terms) {
+        const active = terms.filter(term => term.exact && term.exact.sign !== 0);
+        if (!active.length) return '0';
+        return active.map((term, index) => {
+          const sign = term.exact.sign;
+          const coefficient = term.exact.absTex === '1' ? '' : term.exact.absTex;
+          const body = coefficient + term.factor;
+          if (index === 0) return sign < 0 ? '-' + body : body;
+          return sign < 0 ? ' - ' + body : ' + ' + body;
+        }).join('');
+      }
+
+      function guessComplexExactTex(z) {
+        if (!finiteComplex(z)) return null;
+        const re = guessRealExact(cleanTiny(z.re, cAbs(z)));
+        const im = guessRealExact(cleanTiny(z.im, cAbs(z)));
+        if (!re || !im) return null;
+        return signedTexTerms([
+          { exact: re, factor: '' },
+          { exact: im, factor: 'i' }
+        ]);
+      }
+
+      function numberToTex(value) {
+        const text = formatNumber(value, 7);
+        const match = text.match(/^(-?[0-9.]+)e(-?[0-9]+)$/);
+        return match ? match[1] + '\\times 10^{' + match[2] + '}' : text;
+      }
+
+      function approximateComplexTex(z) {
+        const re = cleanTiny(z.re, cAbs(z));
+        const im = cleanTiny(z.im, cAbs(z));
+        if (im === 0) return numberToTex(re);
+        if (re === 0) return numberToTex(im) + 'i';
+        return numberToTex(re) + (im < 0 ? ' - ' : ' + ') + numberToTex(Math.abs(im)) + 'i';
+      }
+
+      function singularityTex(s) {
+        return s.exactTex || guessComplexExactTex(s.z) || approximateComplexTex(s.z);
+      }
+
+      function residueTex(s, symbolicFallback = true) {
+        const guessed = guessComplexExactTex(s.residue);
+        if (guessed) return guessed;
+        return symbolicFallback
+          ? '\\operatorname{Res}\\!\\left(f;' + singularityTex(s) + '\\right)'
+          : '\\approx ' + approximateComplexTex(s.residue);
+      }
+
+      function symbolicResidueSumTex(included) {
+        if (!included.length) return '0';
+        return included.map(({ s, winding }, index) => {
+          const residue = residueTex(s, true);
+          const coefficient = Math.abs(winding) === 1 ? '' : Math.abs(winding).toString();
+          const body = coefficient + (coefficient ? '\\,' : '') + residue;
+          if (index === 0) return winding < 0 ? '-' + body : body;
+          return winding < 0 ? ' - ' + body : ' + ' + body;
+        }).join('');
+      }
+
+      function exactIntegralTex(residueSum, included) {
+        const realPi = guessRealExact(cleanTiny(-2 * residueSum.im, cAbs(residueSum)));
+        const imaginaryPi = guessRealExact(cleanTiny(2 * residueSum.re, cAbs(residueSum)));
+        if (realPi && imaginaryPi) {
+          return signedTexTerms([
+            { exact: realPi, factor: '\\pi' },
+            { exact: imaginaryPi, factor: '\\pi i' }
+          ]);
+        }
+        return '2\\pi i\\left(' + symbolicResidueSumTex(included) + '\\right)';
+      }
+
+      function calculateIntegral() {
+        if (!state.curveClosed || state.curve.length < 3) return;
+        const near = state.singularities.find(s => distanceToCurve(s.z) < 8 / state.scale);
+        if (near) {
+          renderTex(integralValue, '\\displaystyle \\oint_C f(z)\\,dz\\;\\text{is undefined}');
+          renderTex(integralDetail, 'C\\text{ が特異点 }z=' + singularityTex(near) + '\\text{ を通っています}');
+          return;
+        }
+        let residueSum = complex(0, 0);
+        const included = [];
+        for (const s of state.singularities) {
+          const winding = windingNumber(s.z);
+          if (winding !== 0 && finiteComplex(s.residue)) {
+            residueSum = cAdd(residueSum, complex(s.residue.re * winding, s.residue.im * winding));
+            included.push({ s, winding });
+          }
+        }
+        const sumTex = symbolicResidueSumTex(included);
+        renderTex(integralValue, '\\displaystyle \\oint_C f(z)\\,dz=' + exactIntegralTex(residueSum, included));
+        renderTex(integralDetail, '=2\\pi i\\left[' + sumTex + '\\right]');
+      }
+
+      function showToast(message) {
+        toast.textContent = message;
+        toast.classList.add('show');
+        clearTimeout(showToast.timer);
+        showToast.timer = setTimeout(() => toast.classList.remove('show'), 2300);
+      }
+
+      function closeDrawnCurve() {
+        if (state.curve.length < 12) return false;
+        const first = worldToScreen(state.curve[0]);
+        const last = worldToScreen(state.curve[state.curve.length - 1]);
+        const endpointDistance = Math.hypot(last.x - first.x, last.y - first.y);
+        let length = 0;
+        for (let i = 1; i < state.curve.length; i++) {
+          const a = worldToScreen(state.curve[i - 1]), b = worldToScreen(state.curve[i]);
+          length += Math.hypot(b.x - a.x, b.y - a.y);
+        }
+        const tolerance = Math.max(24, Math.min(38, length * .07));
+        if (endpointDistance <= tolerance && length > 110) {
+          state.curve[state.curve.length - 1] = { ...state.curve[0] };
+          state.curveClosed = true;
+          calculateIntegral();
+          showToast('閉曲線 C を作成しました');
+          return true;
+        }
+        state.curveClosed = false;
+        integralValue.textContent = '曲線はまだ閉じていません';
+        integralDetail.textContent = '終点を始点の近くまで戻してください';
+        return false;
+      }
+
+      function nearestCurveIndex(point) {
+        let best = -1, bestDistance = Infinity;
+        for (let i = 0; i < state.curve.length; i++) {
+          const p = worldToScreen(state.curve[i]);
+          const d = Math.hypot(p.x - point.x, p.y - point.y);
+          if (d < bestDistance) { best = i; bestDistance = d; }
+        }
+        return bestDistance <= 27 ? best : -1;
+      }
+
+      function setMode(mode) {
+        state.mode = mode;
+        document.querySelectorAll('[data-mode]').forEach(button => {
+          const active = button.dataset.mode === mode;
+          button.classList.toggle('active', active);
+          button.setAttribute('aria-pressed', String(active));
+        });
+        canvas.style.cursor = mode === 'draw' ? 'crosshair' : mode === 'edit' ? 'grab' : 'grab';
+        tooltip.style.display = 'none';
+      }
+
+      function eventPoint(event) {
+        const rect = canvas.getBoundingClientRect();
+        return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+      }
+
+      canvas.addEventListener('pointerdown', event => {
+        if (event.button !== undefined && event.button !== 0) return;
+        const point = eventPoint(event);
+        canvas.setPointerCapture(event.pointerId);
+        tooltip.style.display = 'none';
+        state.hoverSingularity = null;
+        if (state.mode === 'draw') {
+          state.curve = [screenToWorld(point.x, point.y)];
+          state.curveClosed = false;
+          state.action = { type: 'draw', pointerId: event.pointerId, last: point };
+          integralValue.textContent = '曲線 C を描いています…';
+          integralDetail.textContent = '始点の近くで指やカーソルを離すと閉じます';
+        } else if (state.mode === 'edit') {
+          if (!state.curveClosed) { showToast('先に閉曲線を作成してください'); return; }
+          const index = nearestCurveIndex(point);
+          if (index < 0) { showToast('曲線の近くをつかんでください'); return; }
+          state.action = { type: 'edit', pointerId: event.pointerId, index, lastWorld: screenToWorld(point.x, point.y) };
+          canvas.style.cursor = 'grabbing';
+        } else {
+          state.action = { type: 'pan', pointerId: event.pointerId, last: point };
+          canvas.style.cursor = 'grabbing';
+        }
+        requestDraw();
+      });
+
+      canvas.addEventListener('pointermove', event => {
+        const point = eventPoint(event);
+        if (state.action && state.action.pointerId === event.pointerId) {
+          if (state.action.type === 'draw') {
+            const last = state.action.last;
+            if (Math.hypot(point.x - last.x, point.y - last.y) >= 3.5) {
+              state.curve.push(screenToWorld(point.x, point.y));
+              state.action.last = point;
+            }
+          } else if (state.action.type === 'pan') {
+            const dx = point.x - state.action.last.x;
+            const dy = point.y - state.action.last.y;
+            state.center.re -= dx / state.scale;
+            state.center.im += dy / state.scale;
+            state.action.last = point;
+          } else if (state.action.type === 'edit') {
+            const now = screenToWorld(point.x, point.y);
+            const delta = cSub(now, state.action.lastWorld);
+            const n = state.curve.length;
+            const sigma = Math.max(5, n * .065);
+            for (let i = 0; i < n; i++) {
+              const direct = Math.abs(i - state.action.index);
+              const circular = Math.min(direct, n - direct);
+              const weight = Math.exp(-(circular * circular) / (2 * sigma * sigma));
+              state.curve[i].re += delta.re * weight;
+              state.curve[i].im += delta.im * weight;
+            }
+            if (n > 1) state.curve[n - 1] = { ...state.curve[0] };
+            state.action.lastWorld = now;
+            calculateIntegral();
+          }
+          requestDraw();
+          return;
+        }
+        updateHover(point);
+      });
+
+      function finishPointer(event) {
+        if (!state.action || state.action.pointerId !== event.pointerId) return;
+        if (state.action.type === 'draw') closeDrawnCurve();
+        if (state.action.type === 'pan') scheduleReanalysis();
+        state.action = null;
+        canvas.style.cursor = state.mode === 'draw' ? 'crosshair' : 'grab';
+        requestDraw();
+      }
+
+      canvas.addEventListener('pointerup', finishPointer);
+      canvas.addEventListener('pointercancel', finishPointer);
+      canvas.addEventListener('pointerleave', () => {
+        if (!state.action) {
+          tooltip.style.display = 'none';
+          state.hoverSingularity = null;
+          requestDraw();
+        }
+      });
+
+      function updateHover(point) {
+        let best = null, bestDistance = Infinity;
+        for (const s of state.singularities) {
+          const p = worldToScreen(s.z);
+          const d = Math.hypot(p.x - point.x, p.y - point.y);
+          if (d < bestDistance) { bestDistance = d; best = s; }
+        }
+        if (best && bestDistance <= 18) {
+          const changed = state.hoverSingularity !== best;
+          state.hoverSingularity = best;
+          if (changed) {
+            const exactPosition = best.exactTex || guessComplexExactTex(best.z);
+            const positionTex = exactPosition ? 'z=' + exactPosition : 'z\\approx ' + approximateComplexTex(best.z);
+            const typeText = best.type === 'removable' ? '可除特異点' : best.type === 'essential' ? '真性特異点' : best.order + ' 位の極';
+            tooltip.innerHTML = '<div class="tooltip-name"></div><div class="tooltip-type"></div>' + (best.type === 'pole' ? '<div class="tooltip-residue"></div>' : '');
+            tooltip.querySelector('.tooltip-type').textContent = typeText;
+            renderTex(tooltip.querySelector('.tooltip-name'), positionTex);
+            if (best.type === 'pole') {
+              renderTex(tooltip.querySelector('.tooltip-residue'), '\\operatorname{Res}\\!\\left(f;' + singularityTex(best) + '\\right)=' + residueTex(best, false));
+            }
+          }
+          tooltip.style.display = 'block';
+          const margin = 12;
+          const rect = tooltip.getBoundingClientRect();
+          let x = point.x + 15, y = point.y + 15;
+          if (x + rect.width > state.width - margin) x = point.x - rect.width - 15;
+          if (y + rect.height > state.height - margin) y = point.y - rect.height - 15;
+          tooltip.style.left = Math.max(margin, x) + 'px';
+          tooltip.style.top = Math.max(margin, y) + 'px';
+        } else {
+          state.hoverSingularity = null;
+          tooltip.style.display = 'none';
+        }
+        requestDraw();
+      }
+
+      let reanalysisTimer = null;
+      function scheduleReanalysis() {
+        clearTimeout(reanalysisTimer);
+        reanalysisTimer = setTimeout(() => analyzeFunction({ quiet: true }), 360);
+      }
+
+      function zoomAt(factor, point = { x: state.width / 2, y: state.height / 2 }) {
+        const before = screenToWorld(point.x, point.y);
+        state.scale = Math.max(18, Math.min(1800, state.scale * factor));
+        const after = screenToWorld(point.x, point.y);
+        state.center.re += before.re - after.re;
+        state.center.im += before.im - after.im;
+        requestDraw();
+        scheduleReanalysis();
+      }
+
+      canvas.addEventListener('wheel', event => {
+        event.preventDefault();
+        zoomAt(Math.exp(-event.deltaY * .0019), eventPoint(event));
+      }, { passive: false });
+
+      document.querySelectorAll('[data-mode]').forEach(button => button.addEventListener('click', () => setMode(button.dataset.mode)));
+      document.getElementById('zoomIn').addEventListener('click', () => zoomAt(1.45));
+      document.getElementById('zoomOut').addEventListener('click', () => zoomAt(1 / 1.45));
+      document.getElementById('resetCurve').addEventListener('click', () => {
+        state.curve = [];
+        state.curveClosed = false;
+        state.action = null;
+        integralValue.textContent = '曲線を描くと積分値を計算します';
+        integralDetail.textContent = '終点を始点の近くまで戻すと、自動で閉じます';
+        requestDraw();
+        showToast('曲線をリセットしました');
+      });
+
+      functionForm.addEventListener('submit', event => {
+        event.preventDefault();
+        analyzeFunction();
+      });
+
+      function fitCurve(points) {
+        if (!points.length) return;
+        let minRe = Infinity, maxRe = -Infinity, minIm = Infinity, maxIm = -Infinity;
+        for (const p of points) {
+          minRe = Math.min(minRe, p.re); maxRe = Math.max(maxRe, p.re);
+          minIm = Math.min(minIm, p.im); maxIm = Math.max(maxIm, p.im);
+        }
+        const w = Math.max(maxRe - minRe, .2), h = Math.max(maxIm - minIm, .2);
+        state.center = { re: (minRe + maxRe) / 2, im: (minIm + maxIm) / 2 };
+        const sidePadding = state.width < 700 ? 70 : 130;
+        const topPadding = state.width < 700 ? 150 : 90;
+        state.scale = Math.max(18, Math.min(1200, Math.min((state.width - sidePadding) / w, (state.height - topPadding) / h) * .78));
+      }
+
+      parametricForm.addEventListener('submit', async event => {
+        event.preventDefault();
+        functionError.textContent = '';
+        try {
+          const expression = cleanExpression(curveExpression.value, 'C');
+          const ast = math.parse(expression);
+          validateAst(ast, new Set(['t']));
+          const compiled = ast.compile();
+          const t0 = toComplex(math.evaluate(cleanExpression(tStartInput.value, 't'))).re;
+          const t1 = toComplex(math.evaluate(cleanExpression(tEndInput.value, 't'))).re;
+          if (!Number.isFinite(t0) || !Number.isFinite(t1) || t0 === t1) throw new Error('t の範囲を確認してください');
+          const points = [];
+          const count = 420;
+          for (let k = 0; k <= count; k++) {
+            const t = t0 + (t1 - t0) * k / count;
+            const value = toComplex(compiled.evaluate({ t }));
+            if (!finiteComplex(value)) throw new Error('C(t) が有限の複素数にならない点があります');
+            points.push(value);
+          }
+          state.curve = points;
+          const endpointGap = cAbs(cSub(points[0], points[points.length - 1]));
+          const diameter = Math.max(...points.map(p => cAbs(cSub(p, state.center))), 1);
+          state.curveClosed = endpointGap <= diameter * .025;
+          if (state.curveClosed) state.curve[state.curve.length - 1] = { ...state.curve[0] };
+          fitCurve(points);
+          requestDraw();
+          await analyzeFunction({ quiet: true });
+          if (state.curveClosed) {
+            calculateIntegral();
+            showToast('パラメータ表示から閉曲線 C を作成しました');
+          } else {
+            integralValue.textContent = 'C(t) は閉曲線になっていません';
+            integralDetail.textContent = 'C(t₀) と C(t₁) が一致する範囲を指定してください';
+          }
+        } catch (error) {
+          functionError.textContent = error && error.message ? error.message : 'パラメータ表示を解析できませんでした';
+        }
+      });
+
+      new ResizeObserver(resizeCanvas).observe(app);
+      window.addEventListener('load', () => {
+        resizeCanvas();
+        if (window.math) analyzeFunction();
+        else functionError.textContent = '数式エンジンを読み込めませんでした。通信を確認してください。';
+      });
+    })();
+  </script>
+</body>
+</html>
